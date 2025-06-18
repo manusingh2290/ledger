@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Ledger System with Payment Tracking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .tab-active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .form-section {
+            display: none;
+        }
+        .form-section.active {
+            display: block;
+        }
+        .table-section {
+            display: none;
+        }
+        .table-section.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen">
+        <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-6">
+                <h1 class="text-3xl font-bold">Business Ledger System</h1>
+                <p class="mt-2 opacity-90">Track your purchases, sales and payment installments</p>
+            </div>
+        </header>
+
+        <main class="container mx-auto px-4 py-8">
+            <div class="flex mb-6 border rounded-lg overflow-hidden shadow-sm">
+                <button id="tab-dashboard" class="tab-active py-3 px-6 font-medium flex-1 transition-colors duration-200">
+                    Dashboard
+                </button>
+                <button id="tab-credit" class="bg-white hover:bg-gray-100 py-3 px-6 font-medium flex-1 transition-colors duration-200">
+                    🔵 Credit (Purchases)
+                </button>
+                <button id="tab-debit" class="bg-white hover:bg-gray-100 py-3 px-6 font-medium flex-1 transition-colors duration-200">
+                    🔴 Debit (Sales)
+                </button>
+                <button id="tab-tracking" class="bg-white hover:bg-gray-100 py-3 px-6 font-medium flex-1 transition-colors duration-200">
+                    📈 Tracking
+                </button>
+            </div>
+
+            <div class="mb-6 flex justify-end">
+                <button id="export-excel" class="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-lg shadow transition-colors duration-200 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export to Excel
+                </button>
+            </div>
+
+            <div id="dashboard-section" class="form-section bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4">Dashboard Overview</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-blue-800">Total Purchases</h3>
+                        <p class="text-3xl font-bold text-blue-600" id="total-purchases">₹0</p>
+                        <p class="text-sm text-blue-600" id="total-purchases-count">0 entries</p>
+                    </div>
+                    
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-red-800">Total Sales</h3>
+                        <p class="text-3xl font-bold text-red-600" id="total-sales">₹0</p>
+                        <p class="text-sm text-red-600" id="total-sales-count">0 entries</p>
+                    </div>
+                    
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-green-800">Balance</h3>
+                        <p class="text-3xl font-bold text-green-600" id="balance">₹0</p>
+                        <p class="text-sm text-green-600">Net difference</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-yellow-800">Pending Receivables</h3>
+                        <p class="text-3xl font-bold text-yellow-600" id="pending-receivables">₹0</p>
+                        <p class="text-sm text-yellow-600">Amount yet to receive from sales</p>
+                    </div>
+                    
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-purple-800">Pending Payables</h3>
+                        <p class="text-3xl font-bold text-purple-600" id="pending-payables">₹0</p>
+                        <p class="text-sm text-purple-600">Amount yet to pay for purchases</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-xl font-medium mb-3">Recent Purchases</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-purchases-table" class="divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="py-2 px-3 text-sm text-gray-500" colspan="5">No entries yet</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-medium mb-3">Recent Sales</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-sales-table" class="divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="py-2 px-3 text-sm text-gray-500" colspan="5">No entries yet</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="credit-section" class="form-section bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold">🔵 Credit (Purchases)</h2>
+                    <div>
+                        <button id="view-credit-entries" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg shadow transition-colors duration-200">
+                            View All Entries
+                        </button>
+                        <button id="add-credit-entry" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg shadow transition-colors duration-200">
+                            Add New Entry
+                        </button>
+                    </div>
+                </div>
+
+                <div id="credit-form-container" class="hidden">
+                    <form id="credit-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <input type="hidden" id="credit-edit-id">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-party-name">
+                                Party Name
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-party-name" type="text" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-inward-no">
+                                Inward No
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-inward-no" type="text" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-date">
+                                Date
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-date" type="date" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-item-name">
+                                Item Name
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-item-name" type="text" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-weight">
+                                Weight
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-weight" type="number" step="0.01" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-rate">
+                                Rate
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-rate" type="number" step="0.01" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-total-amount">
+                                Total Amount
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100" 
+                                id="credit-total-amount" type="number" step="0.01" required readonly>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-initial-payment">
+                                Initial Payment
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-initial-payment" type="number" step="0.01" value="0">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2">
+                                Payment Method
+                            </label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="credit-payment" value="Cash" class="form-radio text-blue-600" checked>
+                                    <span class="ml-2">Cash</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="credit-payment" value="Cheque" class="form-radio text-blue-600">
+                                    <span class="ml-2">Cheque</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="credit-payment" value="Bank Transfer" class="form-radio text-blue-600">
+                                    <span class="ml-2">Bank Transfer</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="credit-size">
+                                Size
+                            </label>
+                            <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="credit-size" required>
+                                <option value="">Select Size</option>
+                                <option value="Small">Small</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Big">Big</option>
+                                <option value="Scrap">Scrap</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-span-full flex justify-end mt-4">
+                            <button type="button" id="credit-cancel" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg mr-2">
+                                Cancel
+                            </button>
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg">
+                                Save Entry
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="credit-table-container">
+                    <div class="mb-4 flex justify-between items-center">
+                        <div class="relative">
+                            <input type="text" id="credit-search" placeholder="Search entries..." 
+                                class="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inward No</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="credit-table" class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="py-3 px-3 text-sm text-gray-500" colspan="9">No entries yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="debit-section" class="form-section bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold">🔴 Debit (Sales)</h2>
+                    <div>
+                        <button id="view-debit-entries" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg shadow transition-colors duration-200">
+                            View All Entries
+                        </button>
+                        <button id="add-debit-entry" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg shadow transition-colors duration-200">
+                            Add New Entry
+                        </button>
+                    </div>
+                </div>
+
+                <div id="debit-form-container" class="hidden">
+                    <form id="debit-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <input type="hidden" id="debit-edit-id">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-party-name">
+                                Party Name
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-party-name" type="text" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-outward-no">
+                                Outward No
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-outward-no" type="text" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-date">
+                                Date
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-date" type="date" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-item-name">
+                                Item Name
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-item-name" type="text" placeholder="e.g. Rod" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-weight">
+                                Weight
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-weight" type="number" step="0.01" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-rate">
+                                Rate
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-rate" type="number" step="0.01" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-size">
+                                Size
+                            </label>
+                            <select class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-size" required>
+                                <option value="">Select Size</option>
+                                <option value="8mm">8mm</option>
+                                <option value="10mm">10mm</option>
+                                <option value="12mm">12mm</option>
+                                <option value="16mm">16mm</option>
+                                <option value="20mm">20mm</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-total-amount">
+                                Total Amount
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-total-amount" type="number" step="0.01" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="debit-initial-payment">
+                                Initial Payment
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="debit-initial-payment" type="number" step="0.01" value="0">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2">
+                                Payment Method
+                            </label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="debit-payment" value="Cash" class="form-radio text-red-600" checked>
+                                    <span class="ml-2">Cash</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="debit-payment" value="Cheque" class="form-radio text-red-600">
+                                    <span class="ml-2">Cheque</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="debit-payment" value="Bank Transfer" class="form-radio text-red-600">
+                                    <span class="ml-2">Bank Transfer</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-span-full flex justify-end mt-4">
+                            <button type="button" id="debit-cancel" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg mr-2">
+                                Cancel
+                            </button>
+                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg">
+                                Save Entry
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="debit-table-container">
+                    <div class="mb-4 flex justify-between items-center">
+                        <div class="relative">
+                            <input type="text" id="debit-search" placeholder="Search entries..." 
+                                class="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outward No</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Received</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="debit-table" class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="py-3 px-3 text-sm text-gray-500" colspan="9">No entries yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tracking-section" class="form-section bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4">Track by Party and Date</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 border rounded-lg bg-gray-50">
+                    <div>
+                        <label for="tracking-party-name" class="block text-sm font-medium text-gray-700 mb-1">Party Name</label>
+                        <input type="text" id="tracking-party-name" list="party-names-list" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="All Parties">
+                        <datalist id="party-names-list"></datalist>
+                    </div>
+                    <div>
+                        <label for="tracking-start-date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input type="date" id="tracking-start-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="tracking-end-date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input type="date" id="tracking-end-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-end space-x-2">
+                        <button id="generate-report-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg shadow transition-colors duration-200">Generate</button>
+                        <button id="reset-report-btn" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg shadow transition-colors duration-200">Reset</button>
+                    </div>
+                </div>
+
+                <div id="report-summary" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-blue-800">Total Purchases</h3>
+                        <p class="text-3xl font-bold text-blue-600" id="report-total-purchases">₹0</p>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-red-800">Total Sales</h3>
+                        <p class="text-3xl font-bold text-red-600" id="report-total-sales">₹0</p>
+                    </div>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 class="text-lg font-medium text-green-800">Net Balance</h3>
+                        <p class="text-3xl font-bold text-green-600" id="report-balance">₹0</p>
+                    </div>
+                </div>
+
+                <div id="report-results" class="hidden space-y-8">
+                    <div>
+                        <h3 class="text-xl font-medium mb-3 text-blue-800">Filtered Purchases</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Party</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-purchases-table" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                     <div>
+                        <h3 class="text-xl font-medium mb-3 text-red-800">Filtered Sales</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Party</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-sales-table" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="payment-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold" id="payment-modal-title">Add Payment</h3>
+                        <button id="close-payment-modal" class="text-gray-500 hover:text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Party Name</p>
+                            <p class="font-medium" id="payment-party-name"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Transaction No</p>
+                            <p class="font-medium" id="payment-transaction-no"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total Amount</p>
+                            <p class="font-medium" id="payment-total-amount"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Remaining Amount</p>
+                            <p class="font-medium" id="payment-remaining-amount"></p>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h4 class="font-medium mb-2">Payment History</h4>
+                        <div class="max-h-40 overflow-y-auto border rounded-md">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="payment-history-table" class="bg-white divide-y divide-gray-200">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <form id="payment-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="hidden" id="payment-entry-id">
+                        <input type="hidden" id="payment-entry-type">
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="payment-amount">
+                                Payment Amount
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="payment-amount" type="number" step="0.01" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="payment-date">
+                                Payment Date
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="payment-date" type="date" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2">
+                                Payment Method
+                            </label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="payment-method" value="Cash" class="form-radio text-green-600" checked>
+                                    <span class="ml-2">Cash</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="payment-method" value="Cheque" class="form-radio text-green-600">
+                                    <span class="ml-2">Cheque</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="payment-method" value="Bank Transfer" class="form-radio text-green-600">
+                                    <span class="ml-2">Bank Transfer</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-medium mb-2" for="payment-note">
+                                Note (Optional)
+                            </label>
+                            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                id="payment-note" type="text" placeholder="e.g. Cheque #12345">
+                        </div>
+                        
+                        <div class="col-span-full flex justify-end mt-4">
+                            <button type="button" id="cancel-payment" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg mr-2">
+                                Cancel
+                            </button>
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg">
+                                Add Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="view-payments-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold" id="view-payments-modal-title">Payment History</h3>
+                        <button id="close-view-payments-modal" class="text-gray-500 hover:text-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Party Name</p>
+                            <p class="font-medium" id="view-payments-party-name"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Transaction No</p>
+                            <p class="font-medium" id="view-payments-transaction-no"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Total Amount</p>
+                            <p class="font-medium" id="view-payments-total-amount"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Status</p>
+                            <p class="font-medium" id="view-payments-status"></p>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-medium">Payment History</h4>
+                            <div>
+                                <span class="text-sm text-gray-600 mr-2">Total Paid:</span>
+                                <span class="font-medium" id="view-payments-total-paid"></span>
+                                <span class="text-sm text-gray-600 mx-2">|</span>
+                                <span class="text-sm text-gray-600 mr-2">Remaining:</span>
+                                <span class="font-medium" id="view-payments-remaining"></span>
+                            </div>
+                        </div>
+                        <div class="max-h-80 overflow-y-auto border rounded-md">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                        <th class="py-2 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="view-payments-history-table" class="bg-white divide-y divide-gray-200">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button id="close-view-payments-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="bg-gray-800 text-white py-6">
+            <div class="container mx-auto px-4 text-center">
+                <p>Business Ledger System &copy; 2024</p>
+                <p class="text-sm mt-2 text-gray-400">All data is stored locally in your browser</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize data storage
+        let creditEntries = JSON.parse(localStorage.getItem('creditEntries')) || [];
+        let debitEntries = JSON.parse(localStorage.getItem('debitEntries')) || [];
+        
+        // DOM Elements
+        const tabDashboard = document.getElementById('tab-dashboard');
+        const tabCredit = document.getElementById('tab-credit');
+        const tabDebit = document.getElementById('tab-debit');
+        const tabTracking = document.getElementById('tab-tracking');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const creditSection = document.getElementById('credit-section');
+        const debitSection = document.getElementById('debit-section');
+        const trackingSection = document.getElementById('tracking-section');
+        const exportExcelBtn = document.getElementById('export-excel');
+        
+        // Credit Elements
+        const creditFormContainer = document.getElementById('credit-form-container');
+        const creditTableContainer = document.getElementById('credit-table-container');
+        const creditForm = document.getElementById('credit-form');
+        const addCreditEntryBtn = document.getElementById('add-credit-entry');
+        const viewCreditEntriesBtn = document.getElementById('view-credit-entries');
+        const creditCancelBtn = document.getElementById('credit-cancel');
+        const creditTable = document.getElementById('credit-table');
+        const creditSearch = document.getElementById('credit-search');
+        const creditEditId = document.getElementById('credit-edit-id');
+        
+        // Debit Elements
+        const debitFormContainer = document.getElementById('debit-form-container');
+        const debitTableContainer = document.getElementById('debit-table-container');
+        const debitForm = document.getElementById('debit-form');
+        const addDebitEntryBtn = document.getElementById('add-debit-entry');
+        const viewDebitEntriesBtn = document.getElementById('view-debit-entries');
+        const debitCancelBtn = document.getElementById('debit-cancel');
+        const debitTable = document.getElementById('debit-table');
+        const debitSearch = document.getElementById('debit-search');
+        const debitEditId = document.getElementById('debit-edit-id');
+
+        // Dashboard Elements
+        const totalPurchases = document.getElementById('total-purchases');
+        const totalPurchasesCount = document.getElementById('total-purchases-count');
+        const totalSales = document.getElementById('total-sales');
+        const totalSalesCount = document.getElementById('total-sales-count');
+        const balance = document.getElementById('balance');
+        const pendingReceivables = document.getElementById('pending-receivables');
+        const pendingPayables = document.getElementById('pending-payables');
+        const recentPurchasesTable = document.getElementById('recent-purchases-table');
+        const recentSalesTable = document.getElementById('recent-sales-table');
+        
+        // Payment Modal Elements
+        const paymentModal = document.getElementById('payment-modal');
+        const closePaymentModal = document.getElementById('close-payment-modal');
+        const cancelPayment = document.getElementById('cancel-payment');
+        const paymentForm = document.getElementById('payment-form');
+        const paymentPartyName = document.getElementById('payment-party-name');
+        const paymentTransactionNo = document.getElementById('payment-transaction-no');
+        const paymentTotalAmount = document.getElementById('payment-total-amount');
+        const paymentRemainingAmount = document.getElementById('payment-remaining-amount');
+        const paymentHistoryTable = document.getElementById('payment-history-table');
+        const paymentEntryId = document.getElementById('payment-entry-id');
+        const paymentEntryType = document.getElementById('payment-entry-type');
+        
+        // View Payments Modal Elements
+        const viewPaymentsModal = document.getElementById('view-payments-modal');
+        const closeViewPaymentsModal = document.getElementById('close-view-payments-modal');
+        const closeViewPaymentsBtn = document.getElementById('close-view-payments-btn');
+        const viewPaymentsPartyName = document.getElementById('view-payments-party-name');
+        const viewPaymentsTransactionNo = document.getElementById('view-payments-transaction-no');
+        const viewPaymentsTotalAmount = document.getElementById('view-payments-total-amount');
+        const viewPaymentsStatus = document.getElementById('view-payments-status');
+        const viewPaymentsTotalPaid = document.getElementById('view-payments-total-paid');
+        const viewPaymentsRemaining = document.getElementById('view-payments-remaining');
+        const viewPaymentsHistoryTable = document.getElementById('view-payments-history-table');
+
+        // Tracking Elements
+        const partyNamesList = document.getElementById('party-names-list');
+        const trackingPartyName = document.getElementById('tracking-party-name');
+        const trackingStartDate = document.getElementById('tracking-start-date');
+        const trackingEndDate = document.getElementById('tracking-end-date');
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        const resetReportBtn = document.getElementById('reset-report-btn');
+        const reportSummary = document.getElementById('report-summary');
+        const reportResults = document.getElementById('report-results');
+        const reportTotalPurchases = document.getElementById('report-total-purchases');
+        const reportTotalSales = document.getElementById('report-total-sales');
+        const reportBalance = document.getElementById('report-balance');
+        const reportPurchasesTable = document.getElementById('report-purchases-table');
+        const reportSalesTable = document.getElementById('report-sales-table');
+
+        
+        // Tab Navigation
+        tabDashboard.addEventListener('click', () => setActiveTab('dashboard'));
+        tabCredit.addEventListener('click', () => setActiveTab('credit'));
+        tabDebit.addEventListener('click', () => setActiveTab('debit'));
+        tabTracking.addEventListener('click', () => setActiveTab('tracking'));
+        
+        function setActiveTab(tab) {
+            [tabDashboard, tabCredit, tabDebit, tabTracking].forEach(t => t.classList.remove('tab-active', 'bg-white'));
+            [dashboardSection, creditSection, debitSection, trackingSection].forEach(s => s.style.display = 'none');
+
+            if (tab === 'dashboard') {
+                tabDashboard.classList.add('tab-active');
+                dashboardSection.style.display = 'block';
+                updateDashboard();
+            } else if (tab === 'credit') {
+                tabCredit.classList.add('tab-active');
+                creditSection.style.display = 'block';
+                renderCreditTable();
+            } else if (tab === 'debit') {
+                tabDebit.classList.add('tab-active');
+                debitSection.style.display = 'block';
+                renderDebitTable();
+            } else if (tab === 'tracking') {
+                tabTracking.classList.add('tab-active');
+                trackingSection.style.display = 'block';
+                populatePartyNames();
+            }
+        }
+        
+        // Credit Section Functions
+        addCreditEntryBtn.addEventListener('click', () => {
+            creditForm.reset();
+            creditEditId.value = '';
+            document.getElementById('credit-initial-payment').disabled = false;
+            creditFormContainer.classList.remove('hidden');
+            creditTableContainer.classList.add('hidden');
+        });
+        
+        viewCreditEntriesBtn.addEventListener('click', () => {
+            creditFormContainer.classList.add('hidden');
+            creditTableContainer.classList.remove('hidden');
+            renderCreditTable();
+        });
+        
+        creditCancelBtn.addEventListener('click', () => {
+            creditForm.reset();
+            creditEditId.value = '';
+            creditFormContainer.classList.add('hidden');
+            creditTableContainer.classList.remove('hidden');
+        });
+        
+        creditForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const totalAmount = parseFloat(document.getElementById('credit-total-amount').value);
+            const initialPayment = parseFloat(document.getElementById('credit-initial-payment').value) || 0;
+            const editingId = parseInt(creditEditId.value);
+
+            if (editingId) {
+                // Update existing entry
+                const entryIndex = creditEntries.findIndex(e => e.id === editingId);
+                if (entryIndex > -1) {
+                    creditEntries[entryIndex] = {
+                        ...creditEntries[entryIndex], // Preserve payments and original ID
+                        partyName: document.getElementById('credit-party-name').value,
+                        inwardNo: document.getElementById('credit-inward-no').value,
+                        date: document.getElementById('credit-date').value,
+                        itemName: document.getElementById('credit-item-name').value,
+                        weight: parseFloat(document.getElementById('credit-weight').value),
+                        rate: parseFloat(document.getElementById('credit-rate').value),
+                        totalAmount: totalAmount,
+                        size: document.getElementById('credit-size').value,
+                    };
+                }
+                 alert('Purchase entry updated successfully!');
+            } else {
+                // Add new entry
+                const entry = {
+                    id: Date.now(),
+                    partyName: document.getElementById('credit-party-name').value,
+                    inwardNo: document.getElementById('credit-inward-no').value,
+                    date: document.getElementById('credit-date').value,
+                    itemName: document.getElementById('credit-item-name').value,
+                    weight: parseFloat(document.getElementById('credit-weight').value),
+                    rate: parseFloat(document.getElementById('credit-rate').value),
+                    totalAmount: totalAmount,
+                    size: document.getElementById('credit-size').value,
+                    type: 'credit',
+                    payments: []
+                };
+                
+                if (initialPayment > 0) {
+                    entry.payments.push({
+                        date: entry.date,
+                        amount: initialPayment,
+                        method: document.querySelector('input[name="credit-payment"]:checked').value,
+                        note: 'Initial payment'
+                    });
+                }
+                creditEntries.push(entry);
+                 alert('Purchase entry added successfully!');
+            }
+            
+            localStorage.setItem('creditEntries', JSON.stringify(creditEntries));
+            creditForm.reset();
+            creditFormContainer.classList.add('hidden');
+            creditTableContainer.classList.remove('hidden');
+            renderCreditTable();
+            updateDashboard();
+            populatePartyNames();
+        });
+        
+        document.getElementById('credit-weight').addEventListener('input', calculateCreditAmount);
+        document.getElementById('credit-rate').addEventListener('input', calculateCreditAmount);
+        
+        function calculateCreditAmount() {
+            const weight = parseFloat(document.getElementById('credit-weight').value) || 0;
+            const rate = parseFloat(document.getElementById('credit-rate').value) || 0;
+            document.getElementById('credit-total-amount').value = (weight * rate).toFixed(2);
+        }
+        
+        function renderCreditTable(searchTerm = '') {
+            creditTable.innerHTML = '';
+            if (creditEntries.length === 0) {
+                creditTable.innerHTML = `<tr><td class="py-3 px-3 text-sm text-gray-500" colspan="9">No entries yet</td></tr>`;
+                return;
+            }
+            
+            const filteredEntries = creditEntries.filter(entry => 
+                !searchTerm ||
+                entry.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                entry.inwardNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                entry.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                entry.date.includes(searchTerm)
+            );
+            
+            if (filteredEntries.length === 0) {
+                creditTable.innerHTML = `<tr><td class="py-3 px-3 text-sm text-gray-500" colspan="9">No matching entries found</td></tr>`;
+                return;
+            }
+
+            filteredEntries.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(entry => {
+                const totalPaid = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                const remaining = entry.totalAmount - totalPaid;
+                const isPaid = remaining <= 0.001; // Use tolerance for float comparison
+                const status = isPaid ? 'Paid' : 'Pending';
+                const statusClass = isPaid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                
+                const row = `
+                <tr>
+                    <td class="py-2 px-3 text-sm">${entry.partyName}</td>
+                    <td class="py-2 px-3 text-sm">${entry.inwardNo}</td>
+                    <td class="py-2 px-3 text-sm">${formatDate(entry.date)}</td>
+                    <td class="py-2 px-3 text-sm">${entry.itemName}</td>
+                    <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(entry.totalAmount)}</td>
+                    <td class="py-2 px-3 text-sm">₹${formatNumber(totalPaid)}</td>
+                    <td class="py-2 px-3 text-sm ${remaining > 0 ? 'text-red-600 font-medium' : ''}">${isPaid ? '—' : `₹${formatNumber(remaining)}`}</td>
+                    <td class="py-2 px-3 text-sm"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${status}</span></td>
+                    <td class="py-2 px-3 text-sm">
+                        <div class="flex space-x-2">
+                            <button class="text-blue-600 hover:text-blue-800" onclick="editCreditEntry(${entry.id})">Edit</button>
+                            <button class="text-green-600 hover:text-green-800" onclick="addPaymentForEntry(${entry.id}, 'credit')">${isPaid ? 'View' : 'Pay'}</button>
+                            <button class="text-red-600 hover:text-red-800" onclick="deleteCreditEntry(${entry.id})">Delete</button>
+                        </div>
+                    </td>
+                </tr>`;
+                creditTable.innerHTML += row;
+            });
+        }
+        
+        creditSearch.addEventListener('input', () => renderCreditTable(creditSearch.value));
+        
+        // Debit Section Functions
+        addDebitEntryBtn.addEventListener('click', () => {
+            debitForm.reset();
+            debitEditId.value = '';
+            document.getElementById('debit-initial-payment').disabled = false;
+            debitFormContainer.classList.remove('hidden');
+            debitTableContainer.classList.add('hidden');
+        });
+        
+        viewDebitEntriesBtn.addEventListener('click', () => {
+            debitFormContainer.classList.add('hidden');
+            debitTableContainer.classList.remove('hidden');
+            renderDebitTable();
+        });
+        
+        debitCancelBtn.addEventListener('click', () => {
+            debitForm.reset();
+            debitEditId.value = '';
+            debitFormContainer.classList.add('hidden');
+            debitTableContainer.classList.remove('hidden');
+        });
+        
+        debitForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const totalAmount = parseFloat(document.getElementById('debit-total-amount').value);
+            const initialPayment = parseFloat(document.getElementById('debit-initial-payment').value) || 0;
+            const editingId = parseInt(debitEditId.value);
+
+            if (editingId) {
+                const entryIndex = debitEntries.findIndex(e => e.id === editingId);
+                if (entryIndex > -1) {
+                    debitEntries[entryIndex] = {
+                        ...debitEntries[entryIndex],
+                        partyName: document.getElementById('debit-party-name').value,
+                        outwardNo: document.getElementById('debit-outward-no').value,
+                        date: document.getElementById('debit-date').value,
+                        itemName: document.getElementById('debit-item-name').value,
+                        weight: parseFloat(document.getElementById('debit-weight').value),
+                        size: document.getElementById('debit-size').value,
+                        totalAmount: totalAmount,
+                    };
+                }
+                alert('Sales entry updated successfully!');
+            } else {
+                const entry = {
+                    id: Date.now(),
+                    partyName: document.getElementById('debit-party-name').value,
+                    outwardNo: document.getElementById('debit-outward-no').value,
+                    date: document.getElementById('debit-date').value,
+                    itemName: document.getElementById('debit-item-name').value,
+                    weight: parseFloat(document.getElementById('debit-weight').value),
+                    size: document.getElementById('debit-size').value,
+                    totalAmount: totalAmount,
+                    type: 'debit',
+                    payments: []
+                };
+                
+                if (initialPayment > 0) {
+                    entry.payments.push({
+                        date: entry.date,
+                        amount: initialPayment,
+                        method: document.querySelector('input[name="debit-payment"]:checked').value,
+                        note: 'Initial payment'
+                    });
+                }
+                debitEntries.push(entry);
+                alert('Sales entry added successfully!');
+            }
+            
+            localStorage.setItem('debitEntries', JSON.stringify(debitEntries));
+            debitForm.reset();
+            debitFormContainer.classList.add('hidden');
+            debitTableContainer.classList.remove('hidden');
+            renderDebitTable();
+            updateDashboard();
+            populatePartyNames();
+        });
+
+        document.getElementById('debit-weight').addEventListener('input', calculateDebitAmount);
+        document.getElementById('debit-rate').addEventListener('input', calculateDebitAmount);
+        
+        function calculateDebitAmount() {
+            const weight = parseFloat(document.getElementById('debit-weight').value) || 0;
+            const rate = parseFloat(document.getElementById('debit-rate').value) || 0;
+            document.getElementById('debit-total-amount').value = (weight * rate).toFixed(2);
+        }
+        
+        function renderDebitTable(searchTerm = '') {
+            debitTable.innerHTML = '';
+            if (debitEntries.length === 0) {
+                debitTable.innerHTML = `<tr><td class="py-3 px-3 text-sm text-gray-500" colspan="9">No entries yet</td></tr>`;
+                return;
+            }
+            
+            const filteredEntries = debitEntries.filter(entry => 
+                !searchTerm ||
+                entry.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                entry.outwardNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                entry.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                entry.date.includes(searchTerm)
+            );
+
+            if (filteredEntries.length === 0) {
+                debitTable.innerHTML = `<tr><td class="py-3 px-3 text-sm text-gray-500" colspan="9">No matching entries found</td></tr>`;
+                return;
+            }
+
+            filteredEntries.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(entry => {
+                const totalReceived = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                const remaining = entry.totalAmount - totalReceived;
+                const isFullyReceived = remaining <= 0.001; // Use tolerance for float comparison
+                const status = isFullyReceived ? 'Received' : 'Pending';
+                const statusClass = isFullyReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                
+                const row = `
+                <tr>
+                    <td class="py-2 px-3 text-sm">${entry.partyName}</td>
+                    <td class="py-2 px-3 text-sm">${entry.outwardNo}</td>
+                    <td class="py-2 px-3 text-sm">${formatDate(entry.date)}</td>
+                    <td class="py-2 px-3 text-sm">${entry.itemName}</td>
+                    <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(entry.totalAmount)}</td>
+                    <td class="py-2 px-3 text-sm">₹${formatNumber(totalReceived)}</td>
+                    <td class="py-2 px-3 text-sm ${remaining > 0 ? 'text-red-600 font-medium' : ''}">${isFullyReceived ? '—' : `₹${formatNumber(remaining)}`}</td>
+                    <td class="py-2 px-3 text-sm"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${status}</span></td>
+                    <td class="py-2 px-3 text-sm">
+                        <div class="flex space-x-2">
+                            <button class="text-blue-600 hover:text-blue-800" onclick="editDebitEntry(${entry.id})">Edit</button>
+                            <button class="text-green-600 hover:text-green-800" onclick="addPaymentForEntry(${entry.id}, 'debit')">${isFullyReceived ? 'View' : 'Pay'}</button>
+                            <button class="text-red-600 hover:text-red-800" onclick="deleteDebitEntry(${entry.id})">Delete</button>
+                        </div>
+                    </td>
+                </tr>`;
+                debitTable.innerHTML += row;
+            });
+        }
+        
+        debitSearch.addEventListener('input', () => renderDebitTable(debitSearch.value));
+        
+        // Dashboard Functions
+        function updateDashboard() {
+            const totalPurchaseAmount = creditEntries.reduce((sum, entry) => sum + entry.totalAmount, 0);
+            const totalSaleAmount = debitEntries.reduce((sum, entry) => sum + entry.totalAmount, 0);
+            const balanceAmount = totalSaleAmount - totalPurchaseAmount;
+            
+            let totalPendingPayables = 0;
+            creditEntries.forEach(entry => {
+                const totalPaid = entry.payments.reduce((sum, payment) => sum + payment.amount, 0);
+                totalPendingPayables += (entry.totalAmount - totalPaid);
+            });
+            
+            let totalPendingReceivables = 0;
+            debitEntries.forEach(entry => {
+                const totalReceived = entry.payments.reduce((sum, payment) => sum + payment.amount, 0);
+                totalPendingReceivables += (entry.totalAmount - totalReceived);
+            });
+            
+            totalPurchases.textContent = `₹${formatNumber(totalPurchaseAmount)}`;
+            totalPurchasesCount.textContent = `${creditEntries.length} entries`;
+            totalSales.textContent = `₹${formatNumber(totalSaleAmount)}`;
+            totalSalesCount.textContent = `${debitEntries.length} entries`;
+            balance.textContent = `₹${formatNumber(balanceAmount)}`;
+            balance.className = `text-3xl font-bold ${balanceAmount >= 0 ? 'text-green-600' : 'text-red-600'}`;
+            pendingReceivables.textContent = `₹${formatNumber(totalPendingReceivables)}`;
+            pendingPayables.textContent = `₹${formatNumber(totalPendingPayables)}`;
+            
+            // Recent purchases
+            const recentPurchases = [...creditEntries].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            recentPurchasesTable.innerHTML = '';
+            if (recentPurchases.length > 0) {
+                recentPurchases.forEach(entry => {
+                    const totalPaid = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                    const isPaid = (entry.totalAmount - totalPaid) <= 0.001;
+                    const status = isPaid ? 'Paid' : 'Pending';
+                    const statusClass = isPaid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                    recentPurchasesTable.innerHTML += `
+                    <tr>
+                        <td class="py-2 px-3 text-sm">${formatDate(entry.date)}</td>
+                        <td class="py-2 px-3 text-sm">${entry.partyName}</td>
+                        <td class="py-2 px-3 text-sm">${entry.itemName}</td>
+                        <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(entry.totalAmount)}</td>
+                        <td class="py-2 px-3 text-sm"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${status}</span></td>
+                    </tr>`;
+                });
+            } else {
+                recentPurchasesTable.innerHTML = `<tr><td class="py-2 px-3 text-sm text-gray-500" colspan="5">No entries yet</td></tr>`;
+            }
+            
+            // Recent sales
+            const recentSales = [...debitEntries].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            recentSalesTable.innerHTML = '';
+            if (recentSales.length > 0) {
+                recentSales.forEach(entry => {
+                    const totalReceived = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                    const isFullyReceived = (entry.totalAmount - totalReceived) <= 0.001;
+                    const status = isFullyReceived ? 'Received' : 'Pending';
+                    const statusClass = isFullyReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                    recentSalesTable.innerHTML += `
+                    <tr>
+                        <td class="py-2 px-3 text-sm">${formatDate(entry.date)}</td>
+                        <td class="py-2 px-3 text-sm">${entry.partyName}</td>
+                        <td class="py-2 px-3 text-sm">${entry.itemName}</td>
+                        <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(entry.totalAmount)}</td>
+                        <td class="py-2 px-3 text-sm"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${status}</span></td>
+                    </tr>`;
+                });
+            } else {
+                recentSalesTable.innerHTML = `<tr><td class="py-2 px-3 text-sm text-gray-500" colspan="5">No entries yet</td></tr>`;
+            }
+        }
+        
+        // Payment Modal Functions
+        window.addPaymentForEntry = function(id, type) {
+            const entry = type === 'credit' ? creditEntries.find(e => e.id === id) : debitEntries.find(e => e.id === id);
+            if (!entry) return;
+            
+            const totalPaid = entry.payments.reduce((sum, payment) => sum + payment.amount, 0);
+            const remaining = entry.totalAmount - totalPaid;
+            
+            if (remaining <= 0.001) {
+                showViewPaymentsModal(entry, type);
+                return;
+            }
+            
+            paymentPartyName.textContent = entry.partyName;
+            paymentTransactionNo.textContent = type === 'credit' ? entry.inwardNo : entry.outwardNo;
+            paymentTotalAmount.textContent = `₹${formatNumber(entry.totalAmount)}`;
+            paymentRemainingAmount.textContent = `₹${formatNumber(remaining)}`;
+            paymentEntryId.value = id;
+            paymentEntryType.value = type;
+            document.getElementById('payment-amount').max = remaining.toFixed(2);
+            document.getElementById('payment-amount').value = remaining.toFixed(2);
+            document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
+            renderPaymentHistory(entry.payments);
+            paymentModal.classList.remove('hidden');
+        };
+        
+        function renderPaymentHistory(payments) {
+            paymentHistoryTable.innerHTML = '';
+            if (payments.length === 0) {
+                paymentHistoryTable.innerHTML = `<tr><td class="py-2 px-3 text-sm text-gray-500" colspan="4">No payments yet</td></tr>`;
+                return;
+            }
+            
+            [...payments].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(p => {
+                paymentHistoryTable.innerHTML += `
+                <tr>
+                    <td class="py-2 px-3 text-sm">${formatDate(p.date)}</td>
+                    <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(p.amount)}</td>
+                    <td class="py-2 px-3 text-sm">${p.method}</td>
+                    <td class="py-2 px-3 text-sm">${p.note || '—'}</td>
+                </tr>`;
+            });
+        }
+        
+        closePaymentModal.addEventListener('click', () => paymentModal.classList.add('hidden'));
+        cancelPayment.addEventListener('click', () => paymentModal.classList.add('hidden'));
+        
+        paymentForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const id = parseInt(paymentEntryId.value);
+            const type = paymentEntryType.value;
+            const amount = parseFloat(document.getElementById('payment-amount').value);
+            const date = document.getElementById('payment-date').value;
+            const method = document.querySelector('input[name="payment-method"]:checked').value;
+            const note = document.getElementById('payment-note').value;
+            
+            if (!amount || amount <= 0) {
+                alert("Payment amount must be greater than zero.");
+                return;
+            }
+
+            const entries = type === 'credit' ? creditEntries : debitEntries;
+            const entry = entries.find(e => e.id === id);
+            
+            if (entry) {
+                entry.payments.push({ date, amount, method, note });
+                localStorage.setItem(type === 'credit' ? 'creditEntries' : 'debitEntries', JSON.stringify(entries));
+                if (type === 'credit') renderCreditTable(); else renderDebitTable();
+                updateDashboard();
+                paymentModal.classList.add('hidden');
+                alert('Payment added successfully!');
+            }
+        });
+        
+        // View Payments Modal Functions
+        function showViewPaymentsModal(entry, type) {
+            const totalPaid = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+            const remaining = entry.totalAmount - totalPaid;
+            const isPaid = remaining <= 0.001;
+            
+            viewPaymentsPartyName.textContent = entry.partyName;
+            viewPaymentsTransactionNo.textContent = type === 'credit' ? entry.inwardNo : entry.outwardNo;
+            viewPaymentsTotalAmount.textContent = `₹${formatNumber(entry.totalAmount)}`;
+            viewPaymentsStatus.textContent = isPaid ? 'Fully Paid' : 'Partially Paid';
+            viewPaymentsStatus.className = `font-medium ${isPaid ? 'text-green-600' : 'text-yellow-600'}`;
+            viewPaymentsTotalPaid.textContent = `₹${formatNumber(totalPaid)}`;
+            viewPaymentsRemaining.textContent = `₹${formatNumber(remaining > 0 ? remaining : 0)}`;
+            viewPaymentsRemaining.className = `font-medium ${remaining > 0 ? 'text-red-600' : 'text-green-600'}`;
+            
+            renderViewPaymentsHistory(entry.payments);
+            viewPaymentsModal.classList.remove('hidden');
+        }
+        
+        function renderViewPaymentsHistory(payments) {
+            viewPaymentsHistoryTable.innerHTML = '';
+            if (payments.length === 0) {
+                viewPaymentsHistoryTable.innerHTML = `<tr><td class="py-2 px-3 text-sm text-gray-500" colspan="4">No payments yet</td></tr>`;
+                return;
+            }
+            
+            [...payments].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(p => {
+                viewPaymentsHistoryTable.innerHTML += `
+                <tr>
+                    <td class="py-2 px-3 text-sm">${formatDate(p.date)}</td>
+                    <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(p.amount)}</td>
+                    <td class="py-2 px-3 text-sm">${p.method}</td>
+                    <td class="py-2 px-3 text-sm">${p.note || '—'}</td>
+                </tr>`;
+            });
+        }
+        
+        closeViewPaymentsModal.addEventListener('click', () => viewPaymentsModal.classList.add('hidden'));
+        closeViewPaymentsBtn.addEventListener('click', () => viewPaymentsModal.classList.add('hidden'));
+        
+        // Helper Functions
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            // Add timezone to ensure date is parsed correctly and doesn't shift by a day
+            const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+            return adjustedDate.toLocaleDateString('en-IN', options);
+        }
+        
+        function formatNumber(number) {
+            return number.toLocaleString('en-IN', { 
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        // Edit and Delete Functions
+        window.editCreditEntry = function(id) {
+            const entry = creditEntries.find(e => e.id === id);
+            if (!entry) return;
+            
+            setActiveTab('credit');
+            creditFormContainer.classList.remove('hidden');
+            creditTableContainer.classList.add('hidden');
+            
+            creditEditId.value = entry.id;
+            document.getElementById('credit-party-name').value = entry.partyName;
+            document.getElementById('credit-inward-no').value = entry.inwardNo;
+            document.getElementById('credit-date').value = entry.date;
+            document.getElementById('credit-item-name').value = entry.itemName;
+            document.getElementById('credit-weight').value = entry.weight;
+            document.getElementById('credit-rate').value = entry.rate || (entry.totalAmount / entry.weight);
+            document.getElementById('credit-total-amount').value = entry.totalAmount;
+            document.getElementById('credit-size').value = entry.size;
+            
+            const initialPaymentInput = document.getElementById('credit-initial-payment');
+            initialPaymentInput.value = 0;
+            initialPaymentInput.disabled = true;
+        };
+        
+        window.deleteCreditEntry = function(id) {
+            if (confirm('Are you sure you want to delete this purchase entry? All associated payment records will also be deleted.')) {
+                creditEntries = creditEntries.filter(e => e.id !== id);
+                localStorage.setItem('creditEntries', JSON.stringify(creditEntries));
+                renderCreditTable();
+                updateDashboard();
+                populatePartyNames();
+            }
+        };
+        
+        window.editDebitEntry = function(id) {
+            const entry = debitEntries.find(e => e.id === id);
+            if (!entry) return;
+
+            setActiveTab('debit');
+            debitFormContainer.classList.remove('hidden');
+            debitTableContainer.classList.add('hidden');
+            
+            debitEditId.value = entry.id;
+            document.getElementById('debit-party-name').value = entry.partyName;
+            document.getElementById('debit-outward-no').value = entry.outwardNo;
+            document.getElementById('debit-date').value = entry.date;
+            document.getElementById('debit-item-name').value = entry.itemName;
+            document.getElementById('debit-weight').value = entry.weight;
+            document.getElementById('debit-size').value = entry.size;
+            document.getElementById('debit-total-amount').value = entry.totalAmount;
+            
+            const initialPaymentInput = document.getElementById('debit-initial-payment');
+            initialPaymentInput.value = 0;
+            initialPaymentInput.disabled = true;
+        };
+        
+        window.deleteDebitEntry = function(id) {
+            if (confirm('Are you sure you want to delete this sales entry? All associated payment records will also be deleted.')) {
+                debitEntries = debitEntries.filter(e => e.id !== id);
+                localStorage.setItem('debitEntries', JSON.stringify(debitEntries));
+                renderDebitTable();
+                updateDashboard();
+                populatePartyNames();
+            }
+        };
+
+        // Tracking Section Functions
+        function populatePartyNames() {
+            const allNames = new Set();
+            creditEntries.forEach(e => allNames.add(e.partyName));
+            debitEntries.forEach(e => allNames.add(e.partyName));
+
+            partyNamesList.innerHTML = '';
+            [...allNames].sort().forEach(name => {
+                partyNamesList.innerHTML += `<option value="${name}">`;
+            });
+        }
+        
+        generateReportBtn.addEventListener('click', () => {
+            const party = trackingPartyName.value.trim();
+            const startDate = trackingStartDate.value;
+            const endDate = trackingEndDate.value;
+            
+            // Filter Purchases
+            let filteredPurchases = creditEntries.filter(entry => {
+                const partyMatch = !party || entry.partyName === party;
+                const dateMatch = (!startDate || entry.date >= startDate) && (!endDate || entry.date <= endDate);
+                return partyMatch && dateMatch;
+            });
+
+            // Filter Sales
+            let filteredSales = debitEntries.filter(entry => {
+                const partyMatch = !party || entry.partyName === party;
+                const dateMatch = (!startDate || entry.date >= startDate) && (!endDate || entry.date <= endDate);
+                return partyMatch && dateMatch;
+            });
+
+            // Calculate summaries
+            const totalPurchases = filteredPurchases.reduce((sum, e) => sum + e.totalAmount, 0);
+            const totalSales = filteredSales.reduce((sum, e) => sum + e.totalAmount, 0);
+            const netBalance = totalSales - totalPurchases;
+
+            // Display summaries
+            reportTotalPurchases.textContent = `₹${formatNumber(totalPurchases)}`;
+            reportTotalSales.textContent = `₹${formatNumber(totalSales)}`;
+            reportBalance.textContent = `₹${formatNumber(netBalance)}`;
+            reportBalance.className = `text-3xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`;
+            
+            // Display purchase table
+            reportPurchasesTable.innerHTML = '';
+            if (filteredPurchases.length > 0) {
+                filteredPurchases.forEach(entry => {
+                     const totalPaid = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                    const isPaid = (entry.totalAmount - totalPaid) <= 0.001;
+                    const status = isPaid ? 'Paid' : 'Pending';
+                    const statusClass = isPaid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                    reportPurchasesTable.innerHTML += `
+                    <tr>
+                        <td class="py-2 px-3 text-sm">${entry.partyName}</td>
+                        <td class="py-2 px-3 text-sm">${formatDate(entry.date)}</td>
+                        <td class="py-2 px-3 text-sm">${entry.itemName}</td>
+                        <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(entry.totalAmount)}</td>
+                        <td class="py-2 px-3 text-sm"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${status}</span></td>
+                    </tr>`;
+                });
+            } else {
+                 reportPurchasesTable.innerHTML = `<tr><td class="py-3 px-3 text-sm text-gray-500" colspan="5">No purchases found for this criteria.</td></tr>`;
+            }
+
+            // Display sales table
+            reportSalesTable.innerHTML = '';
+            if (filteredSales.length > 0) {
+                 filteredSales.forEach(entry => {
+                    const totalReceived = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                    const isFullyReceived = (entry.totalAmount - totalReceived) <= 0.001;
+                    const status = isFullyReceived ? 'Received' : 'Pending';
+                    const statusClass = isFullyReceived ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                    reportSalesTable.innerHTML += `
+                    <tr>
+                        <td class="py-2 px-3 text-sm">${entry.partyName}</td>
+                        <td class="py-2 px-3 text-sm">${formatDate(entry.date)}</td>
+                        <td class="py-2 px-3 text-sm">${entry.itemName}</td>
+                        <td class="py-2 px-3 text-sm font-medium">₹${formatNumber(entry.totalAmount)}</td>
+                        <td class="py-2 px-3 text-sm"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${status}</span></td>
+                    </tr>`;
+                });
+            } else {
+                 reportSalesTable.innerHTML = `<tr><td class="py-3 px-3 text-sm text-gray-500" colspan="5">No sales found for this criteria.</td></tr>`;
+            }
+
+            reportSummary.classList.remove('hidden');
+            reportResults.classList.remove('hidden');
+        });
+
+        resetReportBtn.addEventListener('click', () => {
+            trackingPartyName.value = '';
+            trackingStartDate.value = '';
+            trackingEndDate.value = '';
+            reportSummary.classList.add('hidden');
+            reportResults.classList.add('hidden');
+        });
+
+        
+        // Excel Export Function
+        exportExcelBtn.addEventListener('click', exportToExcel);
+        
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+
+            // --- Credit (Purchases) Sheet ---
+            const creditData = [
+                ['Party Name', 'Inward No', 'Date', 'Item Name', 'Weight', 'Rate', 'Total Amount', 'Paid Amount', 'Remaining', 'Status', '', 'Payment Date', 'Payment Amount', 'Payment Method', 'Payment Note']
+            ];
+            creditEntries.forEach(entry => {
+                const totalPaid = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                const remaining = entry.totalAmount - totalPaid;
+                const status = remaining <= 0.001 ? 'Paid' : 'Pending';
+                
+                creditData.push([
+                    entry.partyName, entry.inwardNo, formatDate(entry.date), entry.itemName, entry.weight, 
+                    entry.rate || (entry.totalAmount / entry.weight), entry.totalAmount, totalPaid, remaining, status
+                ]);
+                
+                if (entry.payments.length > 0) {
+                    entry.payments.forEach(p => {
+                        creditData.push(['', '', '', '', '', '', '', '', '', '', '', formatDate(p.date), p.amount, p.method, p.note]);
+                    });
+                }
+            });
+            const creditSheet = XLSX.utils.aoa_to_sheet(creditData);
+            XLSX.utils.book_append_sheet(wb, creditSheet, 'Credit (Purchases)');
+
+            // --- Debit (Sales) Sheet ---
+            const debitData = [
+                ['Party Name', 'Outward No', 'Date', 'Item Name', 'Weight', 'Size', 'Total Amount', 'Received Amount', 'Remaining', 'Status', '', 'Payment Date', 'Payment Amount', 'Payment Method', 'Payment Note']
+            ];
+            debitEntries.forEach(entry => {
+                const totalReceived = entry.payments.reduce((sum, p) => sum + p.amount, 0);
+                const remaining = entry.totalAmount - totalReceived;
+                const status = remaining <= 0.001 ? 'Received' : 'Pending';
+
+                debitData.push([
+                    entry.partyName, entry.outwardNo, formatDate(entry.date), entry.itemName, entry.weight, entry.size, 
+                    entry.totalAmount, totalReceived, remaining, status
+                ]);
+
+                if (entry.payments.length > 0) {
+                    entry.payments.forEach(p => {
+                        debitData.push(['', '', '', '', '', '', '', '', '', '', '', formatDate(p.date), p.amount, p.method, p.note]);
+                    });
+                }
+            });
+            const debitSheet = XLSX.utils.aoa_to_sheet(debitData);
+            XLSX.utils.book_append_sheet(wb, debitSheet, 'Debit (Sales)');
+
+            // --- Export File ---
+            XLSX.writeFile(wb, 'BusinessLedger_Export.xlsx');
+        }
+        
+        // Initial Load
+        document.addEventListener('DOMContentLoaded', () => {
+            setActiveTab('dashboard');
+            populatePartyNames();
+        });
+    </script>
+</body>
+</html>
